@@ -44,3 +44,8 @@ Run "Update dsh" by hand from the Actions tab to release a specific version
    `git tag v0.2.1-rc.5 && git push origin v0.2.1-rc.5`.
 3. `docker.yml` tests and publishes the image and updates the app store, as
    above.
+
+To rebuild the same dsh version, for example after changing the launcher, tag
+`v<dsh version>-<n>` (`v0.2.1-rc.5-1`, `-2`, ...); the app's version suffix goes
+up by one. A manually started build uses the workflow file as it is at the tag,
+so always tag a commit that has the current workflows.

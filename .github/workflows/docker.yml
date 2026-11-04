@@ -1,7 +1,8 @@
 name: Docker image
 
-# Pushing a tag vX.Y.Z[-pre] publishes ghcr.io/<owner>/deepseek-harness:X.Y.Z[-pre]
-# for amd64 and arm64, then points the app in the Umbrel app store at it.
+# Pushing a tag v<dsh version> publishes ghcr.io/<owner>/deepseek-harness:<dsh version>
+# for amd64 and arm64, then points the app in the Umbrel app store at it. Tag a
+# rebuild of the same dsh version (e.g. a launcher change) v<dsh version>-<n>.
 # Pushes to main and pull requests only build and test. update.yml creates the
 # tags when dsh publishes a new release.
 on:
@@ -134,7 +135,7 @@ jobs:
         run: |
           dsh_version=$(node -p 'require("./package.json").dependencies["@deepseek-ai/dsh"]')
           python3 scripts/update-app-store.py app-store/yakitori-deepseek-harness \
-            "${IMAGE_REF,,}" "$dsh_version" "${{ needs.image.outputs.version }}"
+            "${IMAGE_REF,,}" "$dsh_version"
 
       - name: Commit and push
         working-directory: app-store
