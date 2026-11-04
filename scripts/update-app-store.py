@@ -35,10 +35,17 @@ same_dsh = re.fullmatch(re.escape(dsh_version) + r"(?:-(\d+))?", current)
 version = f"{dsh_version}-{int(same_dsh.group(1) or 0) + 1}" if same_dsh else dsh_version
 manifest = re.sub(r'^version: ".*"$', f'version: "{version}"', manifest, count=1, flags=re.M)
 
-notes = (
-    f"Updates DeepSeek Harness to {dsh_version}. See what changed in DeepSeek's\n"
-    f"  release notes: https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v{dsh_version}\n"
-)
+release_url = f"https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v{dsh_version}"
+if same_dsh:
+    notes = (
+        f"Rebuilds the app's image; DeepSeek Harness itself stays at {dsh_version}.\n"
+        f"  Settings, your API key and sessions are kept.\n"
+    )
+else:
+    notes = (
+        f"Updates DeepSeek Harness to {dsh_version}. See what changed in DeepSeek's\n"
+        f"  release notes: {release_url}\n"
+    )
 manifest, count = re.subn(r"^releaseNotes: >-\n(?:(?:  .*)?\n)*", f"releaseNotes: >-\n  {notes}", manifest, count=1, flags=re.M)
 if count != 1:
     sys.exit(f"{manifest_path}: no releaseNotes block")
