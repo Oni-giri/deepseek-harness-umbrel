@@ -33,8 +33,8 @@ jobs:
             type=semver,pattern={{version}}
             type=sha
 
-      # Build for this runner and check that dsh starts and the launcher picks
-      # up its launch token, before anything is published.
+      # Build for this runner and test it end to end before anything is
+      # published: see test/smoke.mjs for what is checked.
       - name: Build for smoke test
         uses: docker/build-push-action@v7
         with:
@@ -47,20 +47,22 @@ jobs:
 
       - name: Smoke test
         run: |
-          docker run -d --name dsh --tmpfs /data:uid=1000,gid=1000 \
-            -e DSH_HOME=/data/home -e HOME=/data/home -e DSH_TELEMETRY_MODE=DISABLED \
-            -p 8080:8080 dsh-smoke-test
-          for _ in $(seq 60); do
-            if docker logs dsh 2>&1 | grep -q 'dsh is ready'; then
-              curl -fsS -o /dev/null -w 'GET / -> %{http_code}\n' http://127.0.0.1:8080/ || true
-              docker logs dsh
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs dsh
-          echo "dsh did not become ready" >&2
-          exit 1
+          data="$RUNNER_TEMP/data" work="$RUNNER_TEMP/work"
+          mkdir -p "$data" "$work" && sudo chown 1000:1000 "$data" && chmod 777 "$work"
+          # Same environment as the Umbrel app's docker-compose.yml.
+          docker run -d --name dsh --init -v "$data:/data" -w /data \
+            -e DATA_DIR=/data -e DSH_HOME=/data/home -e HOME=/data/home \
+            -e DSH_WORKSPACE=/data/workspace -e LISTEN_PORT=8080 -e DSH_PORT=3081 \
+            -e DSH_TELEMETRY_MODE=DISABLED dsh-smoke-test
+          smoke() {
+            docker run --rm --network container:dsh -v "$PWD/test:/test:ro" -v "$work:/work" \
+              -e COOKIE_FILE=/work/cookie dsh-smoke-test node /test/smoke.mjs "$1"
+          }
+          trap 'docker logs dsh' EXIT
+          smoke fresh
+          sudo test -f "$data/home/.credentials.yaml" || { echo "FAIL dsh's credentials file is not in the data folder"; exit 1; }
+          docker restart dsh
+          smoke restart
 
       - uses: docker/login-action@v4
         if: startsWith(github.ref, 'refs/tags/v')

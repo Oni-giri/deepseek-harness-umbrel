@@ -9,6 +9,15 @@ and `launcher.mjs`. The launcher runs `dsh web` on loopback inside the container
 and serves a small reverse proxy for Umbrel's app proxy, handing over dsh's
 per-process launch token so that Umbrel's login is the access control.
 
+## Smoke test
+
+Every build runs `test/smoke.mjs` against the container, posing as a browser
+behind Umbrel's app proxy: the launch-token handover and `dsh-auth` cookie, the
+page and its plugin bundles, an `/api` call and the `/api/remote.mux` WebSocket
+(each refused without the cookie), then the same cookie again after a container
+restart. These are the dsh details the launcher depends on, so a dsh release
+that changes them fails here instead of on an Umbrel.
+
 ## Releasing a new dsh version
 
 1. Set the new version in `package.json` and refresh the lockfile:
