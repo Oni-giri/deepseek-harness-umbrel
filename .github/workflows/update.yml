@@ -1,0 +1,96 @@
+name: Update dsh
+
+# Once a day: if npm's `latest` dsh release is newer than package.json and has
+# been out for MIN_AGE_DAYS, bump package.json and the lockfile, tag v<version>
+# and start docker.yml on that tag, which tests, publishes and updates the app
+# store. The age gate gives broken or compromised releases time to be pulled.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: dsh version to release (default npm's latest; skips the age gate)
+        required: false
+      dry_run:
+        description: Only report what would happen
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: update-dsh
+
+env:
+  MIN_AGE_DAYS: 3
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # GitHub disables scheduled workflows after 60 days without repository
+      # activity; enabling it through the API on every run keeps it scheduled.
+      - name: Keep the schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/update.yml/enable"
+
+      - name: Check npm
+        id: check
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          current=$(node -p 'require("./package.json").dependencies["@deepseek-ai/dsh"]')
+          target=${REQUESTED:-$(npm view @deepseek-ai/dsh@latest version)}
+          echo "package.json has $current, target is $target"
+          if ! npx -y semver@7.7.2 -p -r ">$current" "$target" > /dev/null; then
+            echo "Up to date." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          if git rev-parse -q --verify "refs/tags/v$target" > /dev/null; then
+            echo "Tag v$target already exists; release it by hand." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          if [ -z "$REQUESTED" ]; then
+            published=$(npm view @deepseek-ai/dsh time --json | jq -r --arg v "$target" '.[$v]')
+            age=$(( ($(date +%s) - $(date -d "$published" +%s)) / 86400 ))
+            if [ "$age" -lt "$MIN_AGE_DAYS" ]; then
+              echo "dsh $target was published $age day(s) ago; waiting until it is $MIN_AGE_DAYS days old." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+          echo "version=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Bump dsh
+        if: steps.check.outputs.version
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          npm pkg set "dependencies.@deepseek-ai/dsh=$VERSION"
+          npm install --package-lock-only --omit=dev --no-audit --no-fund
+          git diff --stat
+
+      - name: Tag and release
+        if: steps.check.outputs.version && !inputs.dry_run
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "Update dsh to $VERSION" \
+            -m "https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v$VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD:main "v$VERSION"
+          # Pushes made with GITHUB_TOKEN start no workflows, so start the build.
+          gh workflow run docker.yml --ref "v$VERSION"
+          echo "Released dsh $VERSION; docker.yml is building v$VERSION." >> "$GITHUB_STEP_SUMMARY"

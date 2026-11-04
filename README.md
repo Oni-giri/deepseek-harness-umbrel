@@ -18,12 +18,29 @@ page and its plugin bundles, an `/api` call and the `/api/remote.mux` WebSocket
 restart. These are the dsh details the launcher depends on, so a dsh release
 that changes them fails here instead of on an Umbrel.
 
-## Releasing a new dsh version
+## Automatic updates
+
+`update.yml` runs every day. When npm's `latest` dsh release is newer than
+`package.json` and at least three days old, it bumps `package.json` and the
+lockfile, tags `v<version>` and starts `docker.yml` on that tag. The build runs
+the smoke test plus two release checks (dsh still reads `DSH_TELEMETRY_MODE`,
+and `npm audit signatures`), publishes
+`ghcr.io/oni-giri/deepseek-harness:<version>` for amd64 and arm64, and
+`scripts/update-app-store.py` then points the app in the app store at the new
+image, with its version and release notes, and pushes to `master`.
+
+Pushing to the app store needs the `APP_STORE_TOKEN` secret: a fine-grained
+token with access to `Oni-giri/yakitoris-app-store` only and the Contents
+permission set to read and write.
+
+Run "Update dsh" by hand from the Actions tab to release a specific version
+(skipping the age gate) or to see what a run would do (`dry_run`).
+
+## Releasing by hand
 
 1. Set the new version in `package.json` and refresh the lockfile:
    `npm install --package-lock-only --omit=dev`.
 2. Commit, then tag with the dsh version and push the tag:
    `git tag v0.2.1-rc.5 && git push origin v0.2.1-rc.5`.
-3. The workflow smoke-tests the image and publishes
-   `ghcr.io/oni-giri/deepseek-harness:<version>` for amd64 and arm64. The run
-   summary lists the digest to pin in the app's `docker-compose.yml`.
+3. `docker.yml` tests and publishes the image and updates the app store, as
+   above.
