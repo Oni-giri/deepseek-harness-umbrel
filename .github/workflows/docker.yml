@@ -70,6 +70,26 @@ jobs:
           docker restart dsh
           smoke restart
 
+      # As the agent's shell and dsh's terminal would: uid 1000, no root, HOME
+      # on the data volume.
+      - name: Agent tooling
+        run: |
+          data="$RUNNER_TEMP/data"
+          docker run --rm -v "$data:/data" -e HOME=/data/home dsh-smoke-test bash -euo pipefail -c '
+            git --version && python3 --version && rg --version | head -1
+            echo "pnpm $(pnpm --version) via corepack"
+            npm install -g --no-audit --no-fund semver > /dev/null
+            pip install -q --no-warn-script-location pyjokes
+            pnpm add -g --silent is-number
+            for bin in semver pyjoke; do
+              [ "$(command -v "$bin")" = "/data/home/.local/bin/$bin" ] || { echo "FAIL $bin is not in ~/.local/bin"; exit 1; }
+            done
+            [ -d /data/home/.local/share/pnpm/global ] || { echo "FAIL pnpm global dir missing"; exit 1; }
+            [ "$(bash -lc "command -v semver")" = /data/home/.local/bin/semver ] || { echo "FAIL a login shell loses ~/.local/bin"; exit 1; }
+            echo "ok   npm, pnpm and pip global installs land in ~/.local, also on a login shell PATH"
+          '
+          sudo test -x "$data/home/.local/bin/semver" || { echo "FAIL installs did not persist on the data volume"; exit 1; }
+
       - name: Release checks
         run: |
           # The app turns telemetry off with DSH_TELEMETRY_MODE; if dsh stops
@@ -134,8 +154,11 @@ jobs:
           IMAGE_REF: ${{ env.IMAGE }}:${{ needs.image.outputs.version }}@${{ needs.image.outputs.digest }}
         run: |
           dsh_version=$(node -p 'require("./package.json").dependencies["@deepseek-ai/dsh"]')
+          # An annotated tag's message becomes the app's release notes.
+          git fetch -q --depth=1 origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          notes=$(git for-each-ref --format='%(if)%(*objectname)%(then)%(contents)%(end)' "refs/tags/$GITHUB_REF_NAME")
           python3 scripts/update-app-store.py app-store/yakitori-deepseek-harness \
-            "${IMAGE_REF,,}" "$dsh_version"
+            "${IMAGE_REF,,}" "$dsh_version" "$notes"
 
       - name: Commit and push
         working-directory: app-store

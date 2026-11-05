@@ -9,6 +9,14 @@ and `launcher.mjs`. The launcher runs `dsh web` on loopback inside the container
 and serves a small reverse proxy for Umbrel's app proxy, handing over dsh's
 per-process launch token so that Umbrel's login is the access control.
 
+## What the agent can use
+
+Besides dsh, the image has git, curl, ripgrep, jq, Python 3 with pip and venv,
+a C/C++ toolchain, and corepack's pnpm and yarn. The agent runs as uid 1000
+without root, so `npm install -g`, `pnpm add -g` and `pip install` go to
+`~/.local` (on the app's data volume, so they survive updates), which is on
+`PATH`. Anything that needs apt has to be added to the image.
+
 ## Smoke test
 
 Every build runs `test/smoke.mjs` against the container, posing as a browser
@@ -47,5 +55,6 @@ Run "Update dsh" by hand from the Actions tab to release a specific version
 
 To rebuild the same dsh version, for example after changing the launcher, tag
 `v<dsh version>-<n>` (`v0.2.1-rc.5-1`, `-2`, ...); the app's version suffix goes
-up by one. A manually started build uses the workflow file as it is at the tag,
+up by one. Use an annotated tag (`git tag -a -m "…"`) to give the app store
+release its own release notes. A manually started build uses the workflow file as it is at the tag,
 so always tag a commit that has the current workflows.

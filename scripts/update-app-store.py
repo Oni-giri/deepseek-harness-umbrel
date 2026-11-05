@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Point the DeepSeek Harness Umbrel app at a published image.
 
-    update-app-store.py <app dir> <image@digest> <dsh version>
+    update-app-store.py <app dir> <image@digest> <dsh version> [release notes]
 
 Rewrites the web service's image in docker-compose.yml, and in umbrel-app.yml
 sets the app version and release notes. Leaves the files untouched when the
@@ -10,13 +10,18 @@ app already uses that image, so re-running a release changes nothing.
 The app version is the dsh version. When the app already ships that dsh
 version (a rebuild, e.g. for a launcher change, tagged v<dsh>-<n>), its -N
 suffix goes up by one instead, so Umbrel always sees a new version.
+
+Release notes default to a line about the dsh version; the optional argument
+(the release tag's annotation) replaces them.
 """
 
 import re
 import sys
+import textwrap
 from pathlib import Path
 
-app_dir, image_ref, dsh_version = sys.argv[1:]
+app_dir, image_ref, dsh_version, *rest = sys.argv[1:]
+custom_notes = " ".join(rest[0].split()) if rest and rest[0].strip() else None
 compose_path = Path(app_dir, "docker-compose.yml")
 manifest_path = Path(app_dir, "umbrel-app.yml")
 
@@ -36,7 +41,9 @@ version = f"{dsh_version}-{int(same_dsh.group(1) or 0) + 1}" if same_dsh else ds
 manifest = re.sub(r'^version: ".*"$', f'version: "{version}"', manifest, count=1, flags=re.M)
 
 release_url = f"https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v{dsh_version}"
-if same_dsh:
+if custom_notes:
+    notes = "".join(f"  {line}\n" for line in textwrap.wrap(custom_notes, 78)).lstrip()
+elif same_dsh:
     notes = (
         f"Rebuilds the app's image; DeepSeek Harness itself stays at {dsh_version}.\n"
         f"  Settings, your API key and sessions are kept.\n"
