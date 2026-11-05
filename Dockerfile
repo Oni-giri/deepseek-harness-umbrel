@@ -14,7 +14,7 @@ RUN apt-get update \
 # pnpm and yarn shims; corepack fetches the version a project asks for. Login
 # shells reset PATH in /etc/profile, so put ~/.local/bin (see ENV below) back.
 RUN corepack enable \
- && printf '%s\n' 'PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$PATH"' > /etc/profile.d/home-local-bin.sh
+ && printf '%s\n' 'PATH="$HOME/.local/bin:$HOME/.local/share/pnpm/bin:$PATH"' > /etc/profile.d/home-local-bin.sh
 
 WORKDIR /opt/dsh
 
@@ -38,7 +38,7 @@ ENV NPM_CONFIG_PREFIX=/data/home/.local \
     PIP_USER=1 \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-    PATH=/data/home/.local/bin:/data/home/.local/share/pnpm:$PATH
+    PATH=/data/home/.local/bin:/data/home/.local/share/pnpm/bin:$PATH
 
 USER 1000:1000
 CMD ["node", "/opt/dsh/launcher.mjs"]

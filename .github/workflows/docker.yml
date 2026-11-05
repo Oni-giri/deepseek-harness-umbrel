@@ -80,11 +80,11 @@ jobs:
             echo "pnpm $(pnpm --version) via corepack"
             npm install -g --no-audit --no-fund semver > /dev/null
             pip install -q --no-warn-script-location pyjokes
-            pnpm add -g --silent is-number
+            pnpm add -g --silent rimraf
             for bin in semver pyjoke; do
               [ "$(command -v "$bin")" = "/data/home/.local/bin/$bin" ] || { echo "FAIL $bin is not in ~/.local/bin"; exit 1; }
             done
-            [ -d /data/home/.local/share/pnpm/global ] || { echo "FAIL pnpm global dir missing"; exit 1; }
+            [ "$(command -v rimraf)" = /data/home/.local/share/pnpm/bin/rimraf ] || { echo "FAIL pnpm global bin is not in ~/.local/share/pnpm/bin"; exit 1; }
             [ "$(bash -lc "command -v semver")" = /data/home/.local/bin/semver ] || { echo "FAIL a login shell loses ~/.local/bin"; exit 1; }
             echo "ok   npm, pnpm and pip global installs land in ~/.local, also on a login shell PATH"
           '
