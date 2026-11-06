@@ -104,7 +104,8 @@ jobs:
           run 'set -euo pipefail
             cargo --version && rustc --version
             echo "nvm $(nvm --version)"
-            case "$(node --version)" in v20.*) ;; *) echo "FAIL node is not nvm'"'"'s 20"; exit 1 ;; esac
+            case "$(command -v node)" in /data/home/.nvm/*) ;; *) echo "FAIL node is not the one nvm installed"; exit 1 ;; esac
+            echo "node $(node --version) from nvm; nvm 20 at $(nvm which 20)"
             echo "ok   rustup and nvm tools work in a fresh non-interactive shell"'
 
       - name: Release checks
