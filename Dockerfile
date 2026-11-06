@@ -31,11 +31,19 @@ COPY bash-env.sh /etc/bash-env.sh
 
 # "Global" installs by the agent (npm -g, pnpm add -g, pip install) go to
 # ~/.local instead of the root-owned /usr/local, so they work without root and,
-# with HOME on the app's data volume (/data/home), survive updates. Corepack
-# must not wait for a yes/no prompt nobody can answer. BASH_ENV hands the
-# agent's shell whatever other installers added to ~/.profile and ~/.bashrc.
+# with HOME on the app's data volume (/data/home), survive updates.
+#
+# npm's prefix lives in this Node's own global npmrc (/usr/local/etc/npmrc), not
+# in NPM_CONFIG_PREFIX: nvm refuses to run while that variable is set, and a
+# Node that nvm or similar tools install keeps its own npm settings. The image
+# user's passwd home is the same /data/home that HOME names, so tools that look
+# it up (rustup, ssh for git keys) agree with the shell.
+RUN npm config set prefix /data/home/.local --location=global \
+ && usermod --home /data/home node
+
+# Corepack must not wait for a yes/no prompt nobody can answer. BASH_ENV hands
+# the agent's shell whatever other installers added to ~/.profile and ~/.bashrc.
 ENV BASH_ENV=/etc/bash-env.sh \
-    NPM_CONFIG_PREFIX=/data/home/.local \
     PNPM_HOME=/data/home/.local/share/pnpm \
     PYTHONUSERBASE=/data/home/.local \
     PIP_USER=1 \

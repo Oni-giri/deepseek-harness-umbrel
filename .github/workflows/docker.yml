@@ -77,6 +77,7 @@ jobs:
           data="$RUNNER_TEMP/data"
           docker run --rm -v "$data:/data" -e HOME=/data/home dsh-smoke-test bash -euo pipefail -c '
             git --version && python3 --version && rg --version | head -1
+            [ "$(getent passwd "$(id -u)" | cut -d: -f6)" = /data/home ] || { echo "FAIL the passwd home is not /data/home"; exit 1; }
             echo "pnpm $(pnpm --version) via corepack"
             npm install -g --no-audit --no-fund semver > /dev/null
             pip install -q --no-warn-script-location pyjokes
