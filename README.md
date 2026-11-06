@@ -15,7 +15,11 @@ Besides dsh, the image has git, curl, ripgrep, jq, Python 3 with pip and venv,
 a C/C++ toolchain, and corepack's pnpm and yarn. The agent runs as uid 1000
 without root, so `npm install -g`, `pnpm add -g` and `pip install` go to
 `~/.local` (on the app's data volume, so they survive updates), which is on
-`PATH`. Anything that needs apt has to be added to the image.
+`PATH`. Other installers that need no root (rustup, nvm, bun, deno, sdkman,
+pyenv, a Go tarball unpacked in the home folder, ...) work as well: they add a
+PATH line to `~/.profile` or `~/.bashrc`, and `BASH_ENV` (`bash-env.sh`) makes
+the agent's non-interactive `bash -c` read those files too. Anything that needs
+apt has to be added to the image.
 
 ## Smoke test
 

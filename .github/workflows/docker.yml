@@ -90,6 +90,22 @@ jobs:
           '
           sudo test -x "$data/home/.local/bin/semver" || { echo "FAIL installs did not persist on the data volume"; exit 1; }
 
+      # Installers that need no root keep their tools in the home folder and add
+      # a PATH line to ~/.profile or ~/.bashrc. The agent's next command, a
+      # fresh non-interactive `bash -c`, must find them through BASH_ENV.
+      - name: Home installers
+        run: |
+          data="$RUNNER_TEMP/data"
+          sudo test -f "$data/home/.bashrc" || { echo "FAIL the launcher did not create ~/.bashrc"; exit 1; }
+          run() { docker run --rm -v "$data:/data" -e HOME=/data/home dsh-smoke-test bash -c "$1"; }
+          run 'curl -sSf https://sh.rustup.rs | sh -s -- -y -q --profile minimal'
+          run 'curl -sSf https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash > /dev/null && . ~/.nvm/nvm.sh && nvm install --no-progress 20 > /dev/null'
+          run 'set -euo pipefail
+            cargo --version && rustc --version
+            echo "nvm $(nvm --version)"
+            case "$(node --version)" in v20.*) ;; *) echo "FAIL node is not nvm'"'"'s 20"; exit 1 ;; esac
+            echo "ok   rustup and nvm tools work in a fresh non-interactive shell"'
+
       - name: Release checks
         run: |
           # The app turns telemetry off with DSH_TELEMETRY_MODE; if dsh stops

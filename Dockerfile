@@ -27,12 +27,15 @@ RUN npm ci --omit=dev --no-audit --no-fund \
  && npm cache clean --force
 
 COPY launcher.mjs ./
+COPY bash-env.sh /etc/bash-env.sh
 
 # "Global" installs by the agent (npm -g, pnpm add -g, pip install) go to
 # ~/.local instead of the root-owned /usr/local, so they work without root and,
 # with HOME on the app's data volume (/data/home), survive updates. Corepack
-# must not wait for a yes/no prompt nobody can answer.
-ENV NPM_CONFIG_PREFIX=/data/home/.local \
+# must not wait for a yes/no prompt nobody can answer. BASH_ENV hands the
+# agent's shell whatever other installers added to ~/.profile and ~/.bashrc.
+ENV BASH_ENV=/etc/bash-env.sh \
+    NPM_CONFIG_PREFIX=/data/home/.local \
     PNPM_HOME=/data/home/.local/share/pnpm \
     PYTHONUSERBASE=/data/home/.local \
     PIP_USER=1 \

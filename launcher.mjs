@@ -16,7 +16,7 @@
 // Only Node built-ins are used.
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
@@ -37,6 +37,19 @@ const DSH_BIN = process.env.DSH_BIN ?? path.join(HERE, 'node_modules', '@deepsee
 const log = (...args) => console.log('[launcher]', ...args)
 
 for (const dir of [WORKSPACE_DIR, DSH_HOME]) mkdirSync(dir, { recursive: true })
+
+// Installers such as nvm only add their PATH line to shell files that already
+// exist, and /etc/bash-env.sh reads these for the agent's shell. Never
+// overwrite them: they hold whatever installers and the user added.
+const HOME = process.env.HOME ?? DSH_HOME
+mkdirSync(HOME, { recursive: true })
+for (const file of ['.bashrc', '.profile']) {
+  try {
+    writeFileSync(path.join(HOME, file), '# Shell setup; installers add their PATH lines here.\n', { flag: 'wx' })
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err
+  }
+}
 
 // The first release of this app installed dsh into the data folder at startup.
 // The image carries it now, so drop that copy and its npm cache.
