@@ -2,7 +2,7 @@
   "name": "umbrel-deepseek-harness",
   "private": true,
   "dependencies": {
-    "@deepseek-ai/dsh": "0.2.1-rc.5"
+    "@deepseek-ai/dsh": "0.2.2-rc.1"
   },
   "allowScripts": {
     "@deepseek-ai/dsh-subprocess-local": true,
